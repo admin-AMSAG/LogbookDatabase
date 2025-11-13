@@ -3,6 +3,7 @@ from __future__ import annotations
 import csv
 import io
 import os
+import re
 from pathlib import Path
 from typing import Iterable
 from urllib.parse import parse_qs, urlparse
@@ -31,6 +32,73 @@ DATABASE_PATH = BASE_DIR / "logbooks.db"
 UPLOAD_FOLDER = BASE_DIR / "uploads"
 ALLOWED_EXTENSIONS = {"csv", "xlsx", "xls"}
 DEFAULT_SHEET_URL = os.environ.get("GOOGLE_SHEET_URL", "").strip()
+
+
+def _sanitize_key(key: str | None) -> str:
+    if not key:
+        return ""
+    return re.sub(r"[^a-z0-9]", "", key.lower())
+
+
+HEADER_ALIASES = {
+    "logbook_number": {
+        "logbook_number",
+        "logbook number",
+        "logbookno",
+        "log book number",
+        "logbook",
+        "logbook#",
+        "log book",
+        "logbook id",
+    },
+    "owner_name": {
+        "owner_name",
+        "owner",
+        "owner name",
+        "current owner",
+        "owners name",
+        "owner/driver",
+        "driver name",
+    },
+    "rego": {
+        "rego",
+        "registration",
+        "rego number",
+        "rego no",
+        "registration number",
+        "registration no",
+        "rego plate",
+        "vehicle rego",
+    },
+    "vehicle": {
+        "vehicle",
+        "vehicle description",
+        "vehicle details",
+        "make model",
+        "vehicle make",
+        "vehicle make & model",
+        "make/model",
+        "vehicle model",
+    },
+    "notes": {
+        "notes",
+        "comments",
+        "remarks",
+        "additional notes",
+        "additional comments",
+    },
+    "status": {
+        "status",
+        "logbook status",
+        "state",
+        "current status",
+    },
+}
+
+HEADER_LOOKUP: dict[str, str] = {}
+for canonical, aliases in HEADER_ALIASES.items():
+    for alias in aliases | {canonical}:
+        HEADER_LOOKUP[_sanitize_key(alias)] = canonical
 
 
 class ReverseProxied:
@@ -294,21 +362,46 @@ def parse_csv(stream: io.TextIOBase) -> Iterable[dict[str, str]]:
 def parse_excel(path: Path) -> Iterable[dict[str, str]]:
     workbook = load_workbook(path, data_only=True)
     sheet = workbook.active
-    headers = [str(cell.value).strip() if cell.value is not None else "" for cell in next(sheet.iter_rows(max_row=1))]
+    header_row = next(sheet.iter_rows(max_row=1))
+    headers = [str(cell.value).strip() if cell.value is not None else "" for cell in header_row]
     for row in sheet.iter_rows(min_row=2, values_only=True):
-        row_dict = {headers[idx].lower(): (str(value).strip() if value is not None else "") for idx, value in enumerate(row)}
+        row_dict = {
+            headers[idx]: (str(value).strip() if value is not None else "")
+            for idx, value in enumerate(row)
+            if idx < len(headers)
+        }
         yield normalize_record(row_dict)
 
 
 def normalize_record(row: dict[str, str]) -> dict[str, str]:
-    return {
-        "logbook_number": row.get("logbook_number", "").strip(),
-        "owner_name": row.get("owner_name", "").strip(),
-        "rego": row.get("rego", "").strip(),
-        "vehicle": row.get("vehicle", "").strip(),
-        "notes": row.get("notes", "").strip(),
-        "status": row.get("status", "").strip().lower() or "active",
+    normalized = {
+        "logbook_number": "",
+        "owner_name": "",
+        "rego": "",
+        "vehicle": "",
+        "notes": "",
+        "status": "",
     }
+
+    for key, value in row.items():
+        canonical = HEADER_LOOKUP.get(_sanitize_key(str(key)))
+        if not canonical:
+            continue
+        if isinstance(value, str):
+            normalized_value = value.strip()
+        elif value is None:
+            normalized_value = ""
+        else:
+            normalized_value = str(value).strip()
+        normalized[canonical] = normalized_value
+
+    status = normalized["status"].lower()
+    if status.startswith("cancel") or status in {"canceled", "cancelled", "inactive"}:
+        normalized["status"] = "cancelled"
+    else:
+        normalized["status"] = "active"
+
+    return normalized
 
 
 def parse_google_sheet(url: str) -> list[dict[str, str]]:

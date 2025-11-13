@@ -55,7 +55,7 @@ A lightweight Flask web application for managing AMSAG vehicle logbooks. Import 
 
 ## Data import format
 
-Your CSV/Excel/Google Sheet should include headers with the following column names:
+Your CSV/Excel/Google Sheet should include headers with the following column names (case-insensitive; spaces and punctuation are ignored):
 
 | Column          | Required | Description                                 |
 |-----------------|----------|---------------------------------------------|
@@ -65,6 +65,8 @@ Your CSV/Excel/Google Sheet should include headers with the following column nam
 | `vehicle`       | ❌        | Vehicle description (make/model/year etc.)  |
 | `notes`         | ❌        | Additional freeform notes                   |
 | `status`        | ❌        | Either `active` or `cancelled` (defaults to active)
+
+Common variations such as **Logbook Number**, **Owner Name**, **Registration Number**, **Vehicle Details**, **Comments**, or **Logbook Status** are recognised automatically, so you can keep the Google Sheet headers human-friendly without breaking the import.
 
 Existing logbooks are updated when their logbook number already exists in the database.
 
