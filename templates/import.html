@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<section class="card import-card">
+    <h2>Import Logbooks</h2>
+    <p>You can upload a CSV or Excel spreadsheet, or pull data directly from a Google Sheet.</p>
+
+    <form method="post" enctype="multipart/form-data" class="import-form">
+        <div class="field">
+            <label for="file">Upload spreadsheet</label>
+            <input type="file" id="file" name="file" accept=".csv,.xlsx,.xls" />
+            <p class="hint">Columns should include: logbook_number, owner_name, rego, vehicle, notes, status.</p>
+        </div>
+
+        <div class="field">
+            <label for="sheet_url">Google Sheet URL</label>
+            <input type="url" id="sheet_url" name="sheet_url" placeholder="https://docs.google.com/spreadsheets/..." value="{{ default_sheet_url }}" />
+            <p class="hint">Use a share link with viewer access. The importer will convert it to CSV automatically.</p>
+            {% if default_sheet_url %}
+            <button type="submit" name="use_default" value="1" class="btn secondary">Sync from AMSAG master sheet</button>
+            {% endif %}
+        </div>
+
+        <button type="submit" class="btn primary">Import Data</button>
+        <a href="{{ url_for('index') }}" class="btn light">Back to logbooks</a>
+    </form>
+</section>
+{% endblock %}

@@ -1,0 +1,124 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<section class="actions">
+    <form class="search-form" method="get" action="{{ url_for('index') }}">
+        <label for="query" class="sr-only">Search</label>
+        <input type="text" id="query" name="query" value="{{ query }}" placeholder="Search by owner, logbook number, or rego" />
+        <input type="hidden" name="status" value="{{ filter_status }}" />
+        <button type="submit" class="btn primary">Search</button>
+        {% if query %}
+            <a class="btn light" href="{{ url_for('index', status=filter_status) }}">Clear</a>
+        {% endif %}
+    </form>
+
+    <details class="add-logbook">
+        <summary class="btn secondary">Add New Logbook</summary>
+        <form method="post" action="{{ url_for('create_logbook') }}" class="card">
+            <div class="field">
+                <label for="logbook_number">Logbook Number</label>
+                <input id="logbook_number" name="logbook_number" required />
+            </div>
+            <div class="field">
+                <label for="owner_name">Owner Name</label>
+                <input id="owner_name" name="owner_name" required />
+            </div>
+            <div class="field">
+                <label for="rego">Rego</label>
+                <input id="rego" name="rego" required />
+            </div>
+            <div class="field">
+                <label for="vehicle">Vehicle Details</label>
+                <input id="vehicle" name="vehicle" placeholder="e.g. 2008 Subaru WRX" />
+            </div>
+            <div class="field">
+                <label for="notes">Notes</label>
+                <textarea id="notes" name="notes" rows="2" placeholder="Optional notes"></textarea>
+            </div>
+            <button type="submit" class="btn primary">Create Logbook</button>
+        </form>
+    </details>
+</section>
+
+<section class="logbook-table">
+    <header class="section-header">
+        <h2>{{ 'Cancelled Logbooks' if filter_status == 'cancelled' else 'Active Logbooks' }}</h2>
+        <p>{{ logbooks|length }} result{{ '' if logbooks|length == 1 else 's' }}</p>
+    </header>
+    <div class="table-wrapper">
+        <table>
+            <thead>
+                <tr>
+                    <th>Logbook #</th>
+                    <th>Owner</th>
+                    <th>Rego</th>
+                    <th>Vehicle</th>
+                    <th>Status</th>
+                    <th>Notes</th>
+                    <th class="actions-col">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if logbooks %}
+                    {% for logbook in logbooks %}
+                        <tr>
+                            <td data-label="Logbook">{{ logbook['logbook_number'] }}</td>
+                            <td data-label="Owner">{{ logbook['owner_name'] }}</td>
+                            <td data-label="Rego">{{ logbook['rego'] }}</td>
+                            <td data-label="Vehicle">{{ logbook['vehicle'] or '-' }}</td>
+                            <td data-label="Status">
+                                <span class="status {{ logbook['status'] }}">{{ logbook['status'] | capitalize }}</span>
+                            </td>
+                            <td data-label="Notes">{{ logbook['notes'] or '-' }}</td>
+                            <td class="actions-col">
+                                <details>
+                                    <summary class="btn light">Manage</summary>
+                                    <form method="post" action="{{ url_for('update_logbook', logbook_id=logbook['id']) }}" class="card">
+                                        <div class="field">
+                                            <label>Owner Name</label>
+                                            <input name="owner_name" value="{{ logbook['owner_name'] }}" required />
+                                        </div>
+                                        <div class="field">
+                                            <label>Rego</label>
+                                            <input name="rego" value="{{ logbook['rego'] }}" required />
+                                        </div>
+                                        <div class="field">
+                                            <label>Vehicle</label>
+                                            <input name="vehicle" value="{{ logbook['vehicle'] or '' }}" />
+                                        </div>
+                                        <div class="field">
+                                            <label>Notes</label>
+                                            <textarea name="notes" rows="2">{{ logbook['notes'] or '' }}</textarea>
+                                        </div>
+                                        <div class="field">
+                                            <label>Status</label>
+                                            <select name="status">
+                                                <option value="active" {% if logbook['status'] == 'active' %}selected{% endif %}>Active</option>
+                                                <option value="cancelled" {% if logbook['status'] == 'cancelled' %}selected{% endif %}>Cancelled</option>
+                                            </select>
+                                        </div>
+                                        <button type="submit" class="btn primary">Save Changes</button>
+                                    </form>
+                                </details>
+                                {% if logbook['status'] == 'active' %}
+                                    <form method="post" action="{{ url_for('cancel_logbook', logbook_id=logbook['id']) }}" class="inline-form">
+                                        <button type="submit" class="btn danger">Cancel</button>
+                                    </form>
+                                {% else %}
+                                    <form method="post" action="{{ url_for('activate_logbook', logbook_id=logbook['id']) }}" class="inline-form">
+                                        <button type="submit" class="btn secondary">Reactivate</button>
+                                    </form>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="7" class="empty">No logbooks to display.</td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}
